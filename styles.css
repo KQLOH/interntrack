@@ -47,3 +47,17 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .auth-header .language-switch{margin-top:1px}
 .modal-header-actions{display:flex;align-items:center;gap:10px;flex-shrink:0}
 @media(max-width:520px){.auth-card{padding:25px 18px}.auth-header{gap:7px}.auth-header .logo-name{font-size:17px}.auth-header .logo-tagline{font-size:8px}.language-switch button{padding:6px}.modal-header-actions{gap:6px}}
+
+/* Review-before-send email application modal */
+.it-email-dialog{width:min(820px,100%)}
+.it-email-dialog .field{margin-bottom:13px}
+.it-email-dialog #it-body{min-height:195px;line-height:1.55}
+.it-email-help{padding:12px;border-radius:11px;background:#edf3ff;color:#315784;font-size:12px;line-height:1.55}
+.it-email-methods{display:grid;grid-template-columns:1fr 1fr;gap:13px;margin-top:18px}
+.it-email-methods>div{display:flex;flex-direction:column;gap:10px;border:1px solid var(--line);padding:17px;border-radius:14px;background:#fbfcff}
+.it-email-methods h3{margin:0;font-size:15px}
+.it-email-methods p{color:var(--muted);margin:0;line-height:1.5;font-size:12px;flex:1}
+.it-email-methods .btn{width:100%}
+.it-email-msg{background:#eaf8f3;color:#166957;padding:11px;border-radius:9px;line-height:1.5}
+.it-email-msg.bad{background:#fff0f1;color:#a52a43}
+@media(max-width:700px){.it-email-methods{grid-template-columns:1fr}}
