@@ -47,3 +47,20 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .auth-header .language-switch{margin-top:1px}
 .modal-header-actions{display:flex;align-items:center;gap:10px;flex-shrink:0}
 @media(max-width:520px){.auth-card{padding:25px 18px}.auth-header{gap:7px}.auth-header .logo-name{font-size:17px}.auth-header .logo-tagline{font-size:8px}.language-switch button{padding:6px}.modal-header-actions{gap:6px}}
+
+/* Internship Email Apply — overlays the existing InternTrack dashboard. */
+.email-apply-dialog{width:min(830px,100%)}
+.email-apply-dialog .field{margin:0 0 13px}
+.email-apply-dialog #email-body{min-height:210px;line-height:1.5;resize:vertical}
+.email-company-label{margin:10px 0 0;font-size:13px;font-weight:750;color:#315784}
+.email-hint{background:#edf3ff;color:#2b507e;border:1px solid #d5e5ff;padding:10px 13px;border-radius:10px;line-height:1.45;font-size:12px;margin:0 0 19px}
+.email-options-grid{display:grid;grid-template-columns:1fr 1fr;gap:13px;margin:18px 0 14px}
+.email-option{border:1px solid var(--line);background:#fbfcff;border-radius:14px;padding:17px;display:flex;flex-direction:column;gap:9px;min-width:0}
+.email-option h3{font-size:15px;margin:0;line-height:1.4}
+.email-option p,.email-option small{font-size:12px;color:#637287;line-height:1.5;margin:0}
+.email-option .btn{width:100%;margin-top:auto;min-height:37px;font-size:12px}
+.email-warning{font-size:12px;font-weight:650;color:#925e1d;margin:12px 0}
+.email-alert{padding:11px 13px;border:1px solid #b4e3d8;background:#f2faf7;border-radius:10px;color:#126a5b;font-size:12px;line-height:1.5}
+.email-alert.bad{border-color:#e5b4bb;background:#fff0f1;color:#a12742}
+.email-alert[hidden]{display:none}
+@media(max-width:700px){.email-options-grid{grid-template-columns:1fr}.email-apply-dialog #email-body{min-height:200px}}

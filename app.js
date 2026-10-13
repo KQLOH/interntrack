@@ -101,7 +101,7 @@
     const meta=`<span>📍 ${escapeHtml(r.location||t('record.noLocation'))}</span><span>📅 ${t(r.stage==='applied'?'record.appliedDate':'record.deadline')} <strong>${escapeHtml(fmtDate(r.stage==='applied'?r.applied_date:r.deadline))}</strong></span>${when?`<span style="${urgent?'color:#bd4355;font-weight:800':''}">⏰ ${t('record.nextDate')} ${escapeHtml(fmtDate(when))}${due!==null&&due<0?' ('+t('record.overdue')+')':''}</span>`:''}`;
     const url=safeUrl(r.job_url);
     return `<article class="company-card"><div><div class="company-header"><div class="company-name">${escapeHtml(r.company)}</div>${chips}</div><p class="company-role">${escapeHtml(r.position)}${r.next_action?' · '+t('record.next')+' '+escapeHtml(r.next_action):''}</p><div class="company-meta">${meta}</div></div>
-      <div class="company-actions">${url?`<a class="btn small soft" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${t('action.job')}</a>`:''}${r.stage==='to_apply'?`<button class="btn small primary" type="button" data-action="move" data-id="${escapeHtml(r.id)}">${t('action.markApplied')}</button>`:''}<button class="btn small" type="button" data-action="edit" data-id="${escapeHtml(r.id)}">${t('action.edit')}</button><button class="btn small danger" type="button" data-action="delete" data-id="${escapeHtml(r.id)}">${t('action.delete')}</button></div></article>`;
+      <div class="company-actions">${url?`<a class="btn small soft" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${t('action.job')}</a>`:''}<button class="btn small soft" type="button" data-action="email-apply" data-id="${escapeHtml(r.id)}">✉ ${escapeHtml(I18N.get()==='zh'?'邮件申请':'Apply by Email')}</button>${r.stage==='to_apply'?`<button class="btn small primary" type="button" data-action="move" data-id="${escapeHtml(r.id)}">${t('action.markApplied')}</button>`:''}<button class="btn small" type="button" data-action="edit" data-id="${escapeHtml(r.id)}">${t('action.edit')}</button><button class="btn small danger" type="button" data-action="delete" data-id="${escapeHtml(r.id)}">${t('action.delete')}</button></div></article>`;
   }
   function renderCards(){
     const holder=el('company-list');if(!holder)return;
@@ -227,6 +227,23 @@
     if(action==='close'){closeModal();return;}
     if(action==='new'){openModal();return;}
     if(action==='edit'){openModal(id);return;}
+    if(action==='email-apply'){
+      const record=state.records.find(r=>String(r.id)===String(id));
+      if(!record)throw Error('Application not found.');
+      if(!window.IT_EMAIL)throw Error('Email Apply module has not loaded.');
+      window.IT_EMAIL.open({record, lang:I18N.get(), cloud:state.cloud,
+        onSent:async details=>{
+          const date=todayISO();
+          const stamp=new Date().toLocaleString('en-MY');
+          const note=`[${stamp}] Email ${details.method==='gmail_api'?'sent via Gmail API':'manually confirmed as sent'} to ${details.to} (Resume: ${details.resume||'attached manually'}${details.messageId?', Gmail ID: '+details.messageId:''}).`;
+          const changes={contact_email:details.to,notes:[record.notes,note].filter(Boolean).join('\n')};
+          if(record.stage==='to_apply')Object.assign(changes,{stage:'applied',status:'applied',applied_date:date});
+          await saveRecord(changes,record.id);
+          if(record.stage==='to_apply'){state.stage='applied';state.search='';state.filter='all';renderApp();}
+          toast(details.method==='gmail_api'?'Gmail confirmed sending; tracker updated.':'Manual send confirmed; tracker updated.');
+        }
+      });return;
+    }
     if(action==='delete')return removeRecord(id);
     if(action==='move')return markApplied(id);
     if(action==='export'){downloadCsv();return;}

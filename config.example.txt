@@ -1,0 +1,10 @@
+// Add ONLY the googleClientId line to your existing config.js when ready.
+// Keep your already-working Supabase URL and publishable key unchanged.
+
+window.INTERNTRACK_CONFIG = {
+  supabaseUrl: "YOUR_EXISTING_SUPABASE_URL",
+  supabaseAnonKey: "YOUR_EXISTING_SUPABASE_PUBLISHABLE_KEY",
+  googleClientId: "YOUR_GOOGLE_OAUTH_WEB_CLIENT_ID.apps.googleusercontent.com"
+};
+
+// NEVER add Google Client Secret, Supabase Service Role/Secret Key or database password here.
