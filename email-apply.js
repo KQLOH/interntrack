@@ -21,8 +21,9 @@
  function gmailDraft(){
    const v=values();
    const url="https://mail.google.com/mail/?view=cm&fs=1&to="+encodeURIComponent(v.to)+"&su="+encodeURIComponent(v.subject)+"&body="+encodeURIComponent(v.body);
-   const tab=window.open(url,"_blank","noopener,noreferrer");
+   const tab=window.open(url,"_blank");
    if(!tab){message(txt("Your browser might have blocked the Gmail tab. Allow pop-ups and retry.","浏览器可能阻止了 Gmail 弹窗。请允许弹窗并重试。"),true);return;}
+   try{tab.opener=null;}catch(_){}
    opened=true;
    $("it-sent").disabled=false;
    message(txt("Gmail draft opened. Attach your resume PDF and click Send in Gmail, then return here to confirm.","Gmail 草稿已打开。请在 Gmail 附上 Resume PDF 并点击 Send，再返回这里确认。"));
