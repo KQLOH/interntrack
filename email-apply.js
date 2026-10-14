@@ -1,144 +1,75 @@
-/* InternTrack: HR email applications (Gmail draft or OAuth Gmail API).
-   Send is explicit, one recipient per request. No tokens or PDFs persisted. */
+/* InternTrack Gmail compose helper: NEVER sends email automatically. */
 (function(){
-  "use strict";
-  var current=null, draftOpened=false, sending=false, accessToken="", expires=0;
-  var scope="https://www.googleapis.com/auth/gmail.send";
-  var $=function(id){return document.getElementById(id);};
-  var esc=function(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});};
-  var z=function(en,zh){return current&&current.lang==="zh"?zh:en;};
-  var replaceTokens=function(s){
-    return String(s||"").replace(/\[Company\]/gi,function(){return current.record.company||"";})
-       .replace(/\[Position\]/gi,function(){return current.record.position||"";});
-  };
-  var validEmail=function(s){return /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(s);};
-  function fields(){
-    var to=$("it-to").value.trim(),subject=replaceTokens($("it-subject").value).trim(),body=replaceTokens($("it-body").value).trim();
-    if(!validEmail(to))throw Error(z("Enter a valid HR email.","请输入有效的 HR 邮箱。"));
-    if(!subject||!body)throw Error(z("Subject and email body are required.","请填写邮件标题和正文。"));
-    return {to:to,subject:subject,body:body};
-  }
-  function message(s,bad){
-    var el=$("it-email-message");if(!el)return;
-    el.textContent=s;el.style.display="block";el.className="it-email-msg"+(bad?" bad":"");
-  }
-  function close(){if(sending)return;var host=$("modal-root");if(host)host.innerHTML="";current=null;draftOpened=false;}
-  function file(){
-    var f=$("it-pdf").files[0];
-    if(!f)throw Error(z("Select your resume PDF before sending.","直接发送前请先选择 Resume PDF。"));
-    if((f.type!=="application/pdf"&&!/\.pdf$/i.test(f.name))||f.size<1||f.size>8*1024*1024)
-      throw Error(z("PDF must be under 8 MB.","PDF 必须小于 8 MB。"));
-    return f;
-  }
-  function openDraft(){
-    var v=fields();
-    var url="https://mail.google.com/mail/?view=cm&fs=1&to="+encodeURIComponent(v.to)+"&su="+encodeURIComponent(v.subject)+"&body="+encodeURIComponent(v.body);
-    var tab=window.open(url,"_blank");
-    if(!tab)throw Error(z("Gmail tab blocked. Allow pop-ups.","Gmail 弹窗被阻止，请允许此网站弹窗。"));
-    try{tab.opener=null;}catch(_){}
-    draftOpened=true;$("it-manual").disabled=false;
-    message(z("Gmail draft opened. Attach the PDF and click Send there before confirming here.","Gmail 草稿已打开。请附上 PDF 并在 Gmail 点 Send，之后才回到这里确认。"),false);
-  }
-  async function markSent(details){
-    try{
-      await current.onSent(details);
-      message(z("Tracker updated.","申请记录已更新。"),false);
-      close();
-    }catch(e){
-      message(z("Email may have been sent, but tracker update failed. Do NOT resend. Update status manually. ","邮件可能已发送但更新 Tracker 失败。请勿重发，请手动更新申请状态。 ")+(e.message||e),true);
-      $("it-api-send").disabled=true;$("it-manual").disabled=true;
-    }
-  }
-  async function manualConfirm(){
-    if(!draftOpened)return;
-    var v=fields();
-    if(!confirm(z("Did you attach your resume and click Send in Gmail?","你确定已经在 Gmail 附上 Resume 并点击 Send 了吗？")))return;
-    await markSent({method:"manual_confirm",to:v.to,resume:null});
-  }
-  function token(){
-    if(accessToken&&Date.now()<expires)return Promise.resolve(accessToken);
-    var clientId=String(window.INTERNTRACK_CONFIG&&window.INTERNTRACK_CONFIG.googleClientId||"").trim();
-    if(!clientId)throw Error(z("Add the Google OAuth Web Client ID (googleClientId) to config.js for direct sending. Gmail Draft requires no setup.","直接发送需要在 config.js 添加 Google OAuth Web Client ID (googleClientId)。草稿模式不需要设置。"));
-    if(!window.google||!google.accounts||!google.accounts.oauth2)throw Error(z("Google authorization library has not loaded.","Google OAuth 组件未加载。"));
-    return new Promise(function(resolve,reject){
-      var client=google.accounts.oauth2.initTokenClient({
-        client_id:clientId,scope:scope,
-        callback:function(r){
-          if(!r||r.error||!r.access_token){reject(Error((r&&r.error_description)||(r&&r.error)||"Authorization failed."));return;}
-          accessToken=r.access_token;expires=Date.now()+Math.max(60,Number(r.expires_in||3600)-90)*1000;
-          resolve(accessToken);
-        },
-        error_callback:function(e){reject(Error(e.message||e.type||"Google OAuth failed."));}
-      });
-      client.requestAccessToken({prompt:"consent"});
-    });
-  }
-  function base64(bytes){
-    var str="";for(var i=0;i<bytes.length;i+=8192)str+=String.fromCharCode.apply(null,bytes.subarray(i,i+8192));
-    return btoa(str);
-  }
-  function b64Utf8(s){return base64(new TextEncoder().encode(s));}
-  function wrap(s){return (s.match(/.{1,76}/g)||[]).join("\r\n");}
-  async function mime(v,pdf){
-    var name=pdf.name.replace(/[\r\n"\\]/g,"_").replace(/[^\x20-\x7e]/g,"_").slice(0,100)||"Resume.pdf";
-    var boundary="interntrack_"+crypto.randomUUID().replace(/-/g,"");
-    var lines=[
-      "To: "+v.to,"Subject: =?UTF-8?B?"+b64Utf8(v.subject)+"?=",
-      "MIME-Version: 1.0","Content-Type: multipart/mixed; boundary=\""+boundary+"\"",
-      "", "--"+boundary,"Content-Type: text/plain; charset=\"UTF-8\"","Content-Transfer-Encoding: base64","",
-      wrap(b64Utf8(v.body)),"--"+boundary,
-      "Content-Type: application/pdf; name=\""+name+"\"","Content-Transfer-Encoding: base64",
-      "Content-Disposition: attachment; filename=\""+name+"\"","",
-      wrap(base64(new Uint8Array(await pdf.arrayBuffer()))),"--"+boundary+"--",""
-    ];
-    return b64Utf8(lines.join("\r\n")).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
-  }
-  async function sendWithGmail(){
-    if(sending)return;
-    var v=fields(),pdf=file();
-    if(!confirm(z("Send now with the selected PDF?","确认发送这封含 PDF 附件的邮件吗？")+"\n\nTo: "+v.to+"\nSubject: "+v.subject+"\nResume: "+pdf.name))return;
-    sending=true;var button=$("it-api-send");button.disabled=true;
-    message(z("Connecting to Gmail / sending…","正在连接 Gmail / 发送中…"),false);
-    var gmailId=null;
-    try{
-      var bearer=await token();
-      var raw=await mime(v,pdf);
-      var response=await fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages/send",{
-        method:"POST",headers:{"Authorization":"Bearer "+bearer,"Content-Type":"application/json"},
-        body:JSON.stringify({raw:raw})
-      });
-      var result=await response.json().catch(function(){return {};});
-      if(!response.ok||!result.id)throw Error((result.error&&result.error.message)||"Gmail API HTTP "+response.status);
-      gmailId=result.id;
-      await markSent({method:"gmail_api",to:v.to,resume:pdf.name,messageId:gmailId});
-    }catch(e){
-      message((gmailId?z("Gmail sent the email, but the tracker failed. Do not resend. ","Gmail 已发送但 Tracker 更新失败，请勿重发。 "):"")+(e.message||e),true);
-    }finally{sending=false;if(!gmailId){button.disabled=false;}}
-  }
-  function open(opts){
-    if(!opts||!opts.record||typeof opts.onSent!=="function")return;
-    current=opts;draftOpened=false;var r=opts.record,host=$("modal-root");if(!host)return;
-    var subject="Application for "+(r.position||"Software Engineering Internship")+" (4 Jan – 23 May 2027) - Loh Kher Qin";
-    var body="Dear Hiring Manager at [Company],\n\nMy name is Loh Kher Qin, a Year 3 Software Engineering student at TAR UMT (CGPA 3.477). I am applying for the [Position] position at [Company].\n\nDuring my previous internship at Sky Motor Digital, I worked with Laravel, PHP, RESTful APIs and debugging. I have also developed Java/JSP applications and am currently working on an AI/OCR-based timetable project.\n\nMy university internship period is 4 January 2027 to 23 May 2027. My resume is attached for your consideration.\n\nThank you for your time.\n\nKind regards,\nLoh Kher Qin";
-    host.innerHTML='<div class="overlay" id="it-email-overlay"><section class="modal it-email-dialog" role="dialog" aria-modal="true" aria-labelledby="it-email-title">'+
-      '<header class="modal-head"><div><h2 id="it-email-title" class="modal-title">✉ '+esc(z("Apply by Email","邮件申请"))+'</h2><p class="modal-sub">'+esc(r.company)+' · '+esc(r.position)+'</p></div><button type="button" class="icon-close" id="it-close" aria-label="Close">×</button></header>'+
-      '<p class="it-email-help">'+esc(z("For HR email applications only, not company/job-board forms. Review before sending. One email at a time.","只适用于有 HR 邮箱的申请，不会代填招聘网站表单。每次发送前请检查。"))+'</p>'+
-      '<div class="field"><label for="it-to">HR Email</label><input type="email" id="it-to" value="'+esc(r.contact_email||"")+'" placeholder="hr@company.com"></div>'+
-      '<div class="field"><label for="it-subject">'+esc(z("Subject","主题"))+'</label><input id="it-subject" value="'+esc(subject)+'"></div>'+
-      '<div class="field"><label for="it-body">'+esc(z("Email content","邮件正文"))+'</label><textarea id="it-body" rows="10">'+esc(body)+'</textarea><small>[Company] · [Position]</small></div>'+
-      '<div class="field"><label for="it-pdf">'+esc(z("Resume PDF (optional for draft, required for direct send)","Resume PDF（草稿可稍后附上，直接发送必须选择）"))+'</label><input type="file" id="it-pdf" accept=".pdf,application/pdf"><small>'+esc(z("Maximum 8 MB. The file is not stored in Supabase.","最大 8 MB，不会存入 Supabase。"))+'</small></div>'+
-      '<div class="it-email-methods"><div><h3>1 · Gmail Draft</h3><p>'+esc(z("Gmail opens a draft. Add the PDF manually and click Send in Gmail.","自动打开 Gmail 草稿；请手动附 PDF 并发送。"))+'</p><button class="btn primary" id="it-draft">'+esc(z("Open Gmail Draft","打开 Gmail 草稿"))+'</button><button class="btn" id="it-manual" disabled>'+esc(z("I have sent this email","我已发送邮件"))+'</button></div>'+
-      '<div><h3>2 · Gmail API</h3><p>'+esc(z("Google OAuth required. Select your PDF, then explicitly confirm sending.","需要 Google OAuth。选择 PDF，再确认后直接发送。"))+'</p><button class="btn" id="it-connect">'+esc(z("Connect Gmail","连接 Gmail"))+'</button><button class="btn primary" id="it-api-send">'+esc(z("Review & Send PDF","确认并发送 PDF"))+'</button></div></div>'+
-      '<p id="it-email-message" class="it-email-msg" style="display:none" role="status"></p>'+
-      '<footer class="modal-actions"><button class="btn" id="it-cancel">'+esc(z("Cancel","取消"))+'</button></footer></section></div>';
-    $("it-close").addEventListener("click",close);
-    $("it-cancel").addEventListener("click",close);
-    $("it-draft").addEventListener("click",function(){try{openDraft();}catch(e){message(e.message||e,true);}});
-    $("it-manual").addEventListener("click",function(){manualConfirm().catch(function(e){message(e.message||e,true);});});
-    $("it-connect").addEventListener("click",function(){token().then(function(){message(z("Gmail connected.","Gmail 已连接。"),false);}).catch(function(e){message(e.message||e,true);});});
-    $("it-api-send").addEventListener("click",function(){sendWithGmail().catch(function(e){message(e.message||e,true);});});
-    $("it-to").focus();
-  }
-  document.addEventListener("keydown",function(e){if(e.key==="Escape"&&current)close();});
-  window.IT_EMAIL={open:open};
+ "use strict";
+ let opened=false,active=null;
+ const $=id=>document.getElementById(id);
+ const txt=(en,zh)=>active?.lang==="zh"?zh:en;
+ const h=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+ const substitute=s=>String(s||"").replace(/\[Company\]/gi,()=>active.record.company||"").replace(/\[Position\]/gi,()=>active.record.position||"");
+ const validEmail=s=>/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(s);
+ const message=(s,error=false)=>{
+   const target=$("it-email-message");
+   if(target){target.hidden=false;target.textContent=s;target.className="it-email-msg"+(error?" bad":"");}
+ };
+ function values(){
+   const to=$("it-to").value.trim(),subject=substitute($("it-subject").value).trim(),body=substitute($("it-body").value).trim();
+   if(!validEmail(to))throw Error(txt("Please enter a valid HR email address.","请输入有效的 HR 邮箱。"));
+   if(!subject||!body)throw Error(txt("Please complete the subject and email content.","请填写邮件主题和正文。"));
+   return {to,subject,body};
+ }
+ function close(){ if($("modal-root"))$("modal-root").innerHTML=""; active=null;opened=false;}
+ function gmailDraft(){
+   const v=values();
+   const url="https://mail.google.com/mail/?view=cm&fs=1&to="+encodeURIComponent(v.to)+"&su="+encodeURIComponent(v.subject)+"&body="+encodeURIComponent(v.body);
+   const tab=window.open(url,"_blank","noopener,noreferrer");
+   if(!tab){message(txt("Your browser might have blocked the Gmail tab. Allow pop-ups and retry.","浏览器可能阻止了 Gmail 弹窗。请允许弹窗并重试。"),true);return;}
+   opened=true;
+   $("it-sent").disabled=false;
+   message(txt("Gmail draft opened. Attach your resume PDF and click Send in Gmail, then return here to confirm.","Gmail 草稿已打开。请在 Gmail 附上 Resume PDF 并点击 Send，再返回这里确认。"));
+ }
+ async function confirmSent(){
+   if(!opened)return;
+   const v=values();
+   if(!confirm(txt("Have you actually clicked Send in Gmail, including the resume PDF?","你确定已经在 Gmail 附上 Resume PDF 并点击 Send 了吗？")))return;
+   $("it-sent").disabled=true;
+   try{
+     await active.onSent({to:v.to,method:"manual_confirm",resume:"attached in Gmail"});
+     close();
+   }catch(e){
+     $("it-sent").disabled=false;
+     message(txt("Tracker update failed. If Gmail already sent, do not send again. ","Tracker 更新失败。如果 Gmail 已发送，请不要重复发送。")+(e?.message||String(e)),true);
+   }
+ }
+ async function downloadResume(){
+   if(!active?.onDownloadResume)return;
+   const btn=$("it-download"); btn.disabled=true;
+   try{await active.onDownloadResume();message(txt("Resume downloaded. Attach it to your Gmail draft.","Resume 已下载。请在 Gmail 草稿附加文件。"));}
+   catch(e){message((e?.message||String(e))+" — "+txt("Set up the private Supabase resume bucket first.","请先设置 Supabase 私人 Resume Storage。"),true);}
+   finally{if(btn?.isConnected)btn.disabled=false;}
+ }
+ function open(opts){
+   if(!opts?.record||typeof opts.onSent!=="function")return;
+   active=opts;opened=false;
+   const r=opts.record,holder=$("modal-root");if(!holder)return;
+   const subject="Application for [Position] (4 Jan – 23 May 2027) - Loh Kher Qin";
+   const body="Dear Hiring Manager at [Company],\n\nI am Loh Kher Qin, a Year 3 Software Engineering student at TAR UMT (CGPA 3.477), and I would like to apply for the [Position] opportunity at [Company].\n\nDuring my previous IT internship, I developed web modules using Laravel, PHP and RESTful APIs, and gained practical experience in debugging. I have also worked on Java/JSP projects and am currently developing an AI/OCR academic scheduling system.\n\nMy official university internship period is 4 January 2027 to 23 May 2027. Please find my resume attached for your consideration.\n\nThank you for your time. I look forward to hearing from you.\n\nKind regards,\nLoh Kher Qin";
+   holder.innerHTML='<div class="overlay" id="it-email-overlay"><section class="modal it-email-dialog" role="dialog" aria-modal="true" aria-labelledby="it-email-title">'+
+      '<header class="modal-head"><div><h2 id="it-email-title" class="modal-title">✉ '+h(txt("Prepare Gmail Application","准备 Gmail 申请邮件"))+'</h2><p class="modal-sub">'+h(r.company)+' · '+h(r.position)+'</p></div><button class="icon-close" id="it-close" type="button" aria-label="Close">×</button></header>'+
+      '<p class="it-email-help">'+h(txt("This prepares a Gmail draft only. Nothing is sent without your action. [Company] and [Position] are replaced automatically.","此功能只准备 Gmail 草稿，不会自动发送。[Company] 和 [Position] 会自动替换。"))+'</p>'+
+      '<div class="field"><label for="it-to">HR Email</label><input type="email" id="it-to" value="'+h(r.contact_email||"")+'" placeholder="hr@company.com" autocomplete="email"></div>'+
+      '<div class="field"><label for="it-subject">'+h(txt("Subject","邮件主题"))+'</label><input id="it-subject" value="'+h(subject)+'"></div>'+
+      '<div class="field"><label for="it-body">'+h(txt("Email content","邮件正文"))+'</label><textarea id="it-body" rows="11">'+h(body)+'</textarea><small>[Company] · [Position]</small></div>'+
+      '<div class="it-email-methods"><div><h3>'+h(txt("Resume PDF","简历 PDF"))+'</h3><p>'+h(txt("Save your PDF privately in InternTrack and download it here when needed. A Gmail compose URL cannot attach files automatically.","可先把 PDF 私密储存在 InternTrack，需要时在这里下载。普通 Gmail 链接无法自动添加附件。"))+'</p><button class="btn" id="it-download" type="button"'+(opts.cloud?"":" disabled")+'>'+h(txt("Download saved resume","下载已保存的 Resume"))+'</button></div>'+
+      '<div><h3>Gmail</h3><p>'+h(txt("Gmail will open with the recipient, subject and message filled in. Attach your PDF and click Send yourself.","打开 Gmail 时会自动填写收件人、主题和正文。请自行添加附件并点击发送。"))+'</p><button class="btn primary" id="it-draft" type="button">'+h(txt("Open Gmail Draft ↗","打开 Gmail 草稿 ↗"))+'</button><button class="btn" id="it-sent" type="button" disabled>'+h(txt("I already sent the email","我已发送这封邮件"))+'</button></div></div>'+
+      '<p id="it-email-message" class="it-email-msg" hidden role="status"></p>'+
+      '<footer class="modal-actions"><button class="btn" type="button" id="it-cancel">'+h(txt("Close","关闭"))+'</button></footer></section></div>';
+   $("it-close").addEventListener("click",close);
+   $("it-cancel").addEventListener("click",close);
+   $("it-draft").addEventListener("click",()=>{try{gmailDraft();}catch(e){message(e.message||String(e),true);}});
+   $("it-sent").addEventListener("click",()=>{confirmSent().catch(e=>message(e.message||String(e),true));});
+   $("it-download").addEventListener("click",()=>downloadResume());
+   $("it-to").focus();
+ }
+ document.addEventListener("keydown",e=>{if(e.key==="Escape"&&active)close();});
+ window.IT_EMAIL={open};
 })();
