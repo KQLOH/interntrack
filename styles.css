@@ -61,3 +61,17 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .it-email-msg{background:#eaf8f3;color:#166957;padding:11px;border-radius:9px;line-height:1.5}
 .it-email-msg.bad{background:#fff0f1;color:#a52a43}
 @media(max-width:700px){.it-email-methods{grid-template-columns:1fr}}
+
+/* clickable company detail / preview */
+.company-main{cursor:pointer;border-radius:10px;padding:5px;margin:-5px}
+.company-main:hover{background:#f1f6ff}
+.company-main:focus-visible{outline:3px solid #9fc2ff;outline-offset:3px}
+.company-card:hover .company-name{text-decoration:underline;text-decoration-color:#a6c8fb;text-underline-offset:3px}
+.details-dialog{width:min(780px,100%)}
+.details-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.detail-item{padding:11px 13px;border:1px solid var(--line);border-radius:10px;background:#fbfcfe;min-width:0}
+.detail-item dt{font-size:11px;font-weight:750;color:var(--muted);margin-bottom:5px}
+.detail-item dd{margin:0;font-size:13px;overflow-wrap:anywhere}
+.detail-notes{margin-top:16px;border:1px solid var(--line);padding:15px;border-radius:12px}
+.detail-notes p{margin:8px 0 0;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.6}
+@media(max-width:600px){.details-grid{grid-template-columns:1fr}}
