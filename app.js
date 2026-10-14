@@ -80,7 +80,7 @@
       <div class="sidebar-footer">2027 Internship Tracker · v2.0</div>
       </aside><main class="main">
         <header class="topbar"><div><div class="eyebrow">${t('page.eyebrow')}</div><h1 class="page-title">${escapeHtml(t(applied?'page.appliedTitle':'page.toApplyTitle'))}</h1><p class="subtitle">${escapeHtml(t(applied?'page.appliedSub':'page.toApplySub'))}</p></div>
-        <div class="top-actions">${langSwitch()}<button type="button" class="btn" data-action="export">${t('action.export')}</button><button type="button" class="btn" data-action="reload">${t('action.refresh')}</button>${state.cloud?`<button type="button" class="btn" data-action="logout">${t('action.signout')}</button>`:''}<button type="button" class="btn primary" data-action="new">${t('action.add')}</button></div></header>
+        <div class="top-actions">${langSwitch()}<button type="button" class="btn" data-action="resume-upload">📄 ${I18N.get()==='zh'?'保存 Resume':'Save Resume'}</button><button type="button" class="btn" data-action="export">${t('action.export')}</button><button type="button" class="btn" data-action="reload">${t('action.refresh')}</button>${state.cloud?`<button type="button" class="btn" data-action="logout">${t('action.signout')}</button>`:''}<button type="button" class="btn primary" data-action="new">${t('action.add')}</button></div></header>
         <div class="mode-banner ${state.cloud?'cloud':''}"><span>${state.cloud?'●':'⚠'}</span><div><b>${t(state.cloud?'banner.cloudTitle':'banner.demoTitle')}</b> ${state.cloud?escapeHtml(state.user?.email||'')+' · '+escapeHtml(t('banner.cloudDesc')):escapeHtml(t('banner.demoDesc'))}</div></div>
         <div class="stats"><div class="stat"><div class="stat-label">${t('stat.toApply')}</div><div class="stat-num">${st.toApply}</div><div class="stat-footer">${t('nav.toApply')}</div></div>
           <div class="stat"><div class="stat-label">${t('stat.applied')}</div><div class="stat-num">${st.applied}</div><div class="stat-footer">${t('stat.applications')}</div></div>
@@ -100,7 +100,7 @@
     const urgent=due!==null&&active(r)&&due<=3;
     const meta=`<span>📍 ${escapeHtml(r.location||t('record.noLocation'))}</span><span>📅 ${t(r.stage==='applied'?'record.appliedDate':'record.deadline')} <strong>${escapeHtml(fmtDate(r.stage==='applied'?r.applied_date:r.deadline))}</strong></span>${when?`<span style="${urgent?'color:#bd4355;font-weight:800':''}">⏰ ${t('record.nextDate')} ${escapeHtml(fmtDate(when))}${due!==null&&due<0?' ('+t('record.overdue')+')':''}</span>`:''}`;
     const url=safeUrl(r.job_url);
-    return `<article class="company-card"><div><div class="company-header"><div class="company-name">${escapeHtml(r.company)}</div>${chips}</div><p class="company-role">${escapeHtml(r.position)}${r.next_action?' · '+t('record.next')+' '+escapeHtml(r.next_action):''}</p><div class="company-meta">${meta}</div></div>
+    return `<article class="company-card" data-company-id="${escapeHtml(r.id)}"><div class="company-main" role="button" tabindex="0" aria-label="${escapeHtml(I18N.get()==='zh'?'查看公司详情':'View company details')}"><div class="company-header"><div class="company-name">${escapeHtml(r.company)}</div>${chips}</div><p class="company-role">${escapeHtml(r.position)}${r.next_action?' · '+t('record.next')+' '+escapeHtml(r.next_action):''}</p><div class="company-meta">${meta}</div></div>
       <div class="company-actions">${url?`<a class="btn small soft" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${t('action.job')}</a>`:''}<button class="btn small soft" type="button" data-action="email-apply" data-id="${escapeHtml(r.id)}">✉ ${escapeHtml(I18N.get()==='zh'?'邮件申请':'Apply by Email')}</button>${r.stage==='to_apply'?`<button class="btn small primary" type="button" data-action="move" data-id="${escapeHtml(r.id)}">${t('action.markApplied')}</button>`:''}<button class="btn small" type="button" data-action="edit" data-id="${escapeHtml(r.id)}">${t('action.edit')}</button><button class="btn small danger" type="button" data-action="delete" data-id="${escapeHtml(r.id)}">${t('action.delete')}</button></div></article>`;
   }
   function renderCards(){
@@ -122,6 +122,58 @@
   const stageOptions=()=>[['to_apply',t('nav.toApply')],['applied',t('nav.applied')]];
   const priorityOptions=()=>priorities.map(k=>[k,t('priority.'+k)]);
   const modeOptions=()=>[['',t('common.noValue')],...modes.map(k=>[k,t('mode.'+k)])];
+  function detailItem(label,value){return '<div class="detail-item"><dt>'+escapeHtml(label)+'</dt><dd>'+escapeHtml(value==null||value===''?'—':String(value))+'</dd></div>';}
+  function showDetails(id){
+    const r=state.records.find(x=>String(x.id)===String(id));if(!r)return;
+    const zh=I18N.get()==='zh', say=(en,cn)=>zh?cn:en;
+    state.modal={kind:'details',id:r.id};
+    const link=safeUrl(r.job_url);
+    el('modal-root').innerHTML=`<div class="overlay" data-action="close-overlay"><section class="modal details-dialog" role="dialog" aria-modal="true" aria-labelledby="details-title">
+       <header class="modal-head"><div><h2 id="details-title" class="modal-title">${escapeHtml(r.company)}</h2><p class="modal-sub">${escapeHtml(r.position)}</p></div><button type="button" class="icon-close" data-action="close" aria-label="Close">×</button></header>
+       <div class="details-grid">
+       ${detailItem(say('Stage','分类'),r.stage==='to_apply'?t('nav.toApply'):t('nav.applied'))}
+       ${detailItem(say('Status','进度'),statusLabel(r.status))}
+       ${detailItem(say('Priority','优先级'),t('priority.'+r.priority))}
+       ${detailItem(say('Location','地点'),r.location)}
+       ${detailItem(say('Work mode','工作方式'),r.work_mode?t('mode.'+r.work_mode):'')}
+       ${detailItem(say('Platform','投递平台'),r.platform)}
+       ${detailItem(say('Applied date','投递日期'),fmtDate(r.applied_date))}
+       ${detailItem(say('Application deadline','申请截止日期'),fmtDate(r.deadline))}
+       ${detailItem(say('Next action','下一步'),r.next_action)}
+       ${detailItem(say('Next due date','下一步截止日期'),fmtDate(r.next_action_date))}
+       ${detailItem(say('Allowance (RM)','津贴 (RM)'),[r.allowance_min,r.allowance_max].filter(v=>v!=null&&v!=='').join(' – '))}
+       ${detailItem(say('HR contact','HR 联系人'),r.contact_name)}
+       ${detailItem(say('HR email','HR 邮箱'),r.contact_email)}
+       ${detailItem(say('Resume version','Resume 版本'),r.resume_version)}
+       </div>
+       <div class="detail-notes"><strong>${say('Notes','备注')}</strong><p>${escapeHtml(r.notes||'—')}</p></div>
+       <footer class="modal-actions">${link?`<a class="btn" target="_blank" rel="noopener noreferrer" href="${escapeHtml(link)}">${say('Open job listing','打开职位链接')} ↗</a>`:''}<button class="btn primary" type="button" data-action="detail-email" data-id="${escapeHtml(r.id)}">✉ ${say('Prepare Gmail','准备 Gmail')}</button><button class="btn" type="button" data-action="edit" data-id="${escapeHtml(r.id)}">${say('Edit','编辑')}</button><button class="btn" type="button" data-action="close">${say('Close','关闭')}</button></footer>
+       </section></div>`;
+  }
+  async function uploadResume(){
+    if(!state.cloud||!state.sb||!state.user){toast(I18N.get()==='zh'?'请先连接 Supabase 并登录。':'Sign in with Supabase first.',true);return;}
+    const input=document.createElement('input');input.type='file';input.accept='.pdf,application/pdf';
+    input.addEventListener('change',async ()=>{
+      const pdf=input.files?.[0];if(!pdf)return;
+      if((pdf.type!=='application/pdf'&&!/\.pdf$/i.test(pdf.name))||pdf.size>8*1024*1024||pdf.size===0){toast('Please select a PDF under 8 MB.',true);return;}
+      if(!confirm((I18N.get()==='zh'?'私密保存此 Resume 供自己下载？':'Save this resume PDF privately for your account?')+'\n'+pdf.name))return;
+      try{
+        const path=state.user.id+'/resume.pdf';
+        const {error}=await state.sb.storage.from('resumes').upload(path,pdf,{contentType:'application/pdf',upsert:true});
+        if(error)throw error;
+        toast(I18N.get()==='zh'?'Resume 已保存到私人云端 Storage。':'Resume saved to private cloud storage.');
+      }catch(e){toast((e.message||String(e))+' — See RESUME_STORAGE_SETUP.md',true);}
+    });
+    input.click();
+  }
+  async function downloadResume(){
+    if(!state.cloud||!state.sb||!state.user)throw Error('Supabase login required.');
+    const {data,error}=await state.sb.storage.from('resumes').download(state.user.id+'/resume.pdf');
+    if(error)throw error;
+    const url=URL.createObjectURL(data);
+    const a=document.createElement('a');a.href=url;a.download='Loh_Kher_Qin_Resume.pdf';
+    document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);
+  }
   function openModal(id,draft){
     const current=state.records.find(r=>r.id===id)||{};
     const record=draft?{...current,...draft}:current;
@@ -227,22 +279,26 @@
     if(action==='close'){closeModal();return;}
     if(action==='new'){openModal();return;}
     if(action==='edit'){openModal(id);return;}
+    if(action==='resume-upload'){await uploadResume();return;}
+    if(action==='detail-email'){closeModal();return handleAction({dataset:{action:'email-apply',id}});}
     if(action==='email-apply'){
       const record=state.records.find(r=>String(r.id)===String(id));
       if(!record)throw Error('Application not found.');
-      if(!window.IT_EMAIL)throw Error('Email Apply module has not loaded.');
-      window.IT_EMAIL.open({record, lang:I18N.get(), cloud:state.cloud,
-        onSent:async details=>{
-          const date=todayISO();
-          const stamp=new Date().toLocaleString('en-MY');
-          const note=`[${stamp}] Email ${details.method==='gmail_api'?'sent via Gmail API':'manually confirmed as sent'} to ${details.to} (Resume: ${details.resume||'attached manually'}${details.messageId?', Gmail ID: '+details.messageId:''}).`;
-          const changes={contact_email:details.to,notes:[record.notes,note].filter(Boolean).join('\n')};
-          if(record.stage==='to_apply')Object.assign(changes,{stage:'applied',status:'applied',applied_date:date});
-          await saveRecord(changes,record.id);
-          if(record.stage==='to_apply'){state.stage='applied';state.search='';state.filter='all';renderApp();}
-          toast(details.method==='gmail_api'?'Gmail confirmed sending; tracker updated.':'Manual send confirmed; tracker updated.');
+      if(!window.IT_EMAIL)throw Error('Email Apply module not loaded.');
+      window.IT_EMAIL.open({record,lang:I18N.get(),cloud:state.cloud,onDownloadResume:downloadResume,onSent:async details=>{
+        const stamp=new Date().toLocaleString('en-MY');
+        const log='['+stamp+'] Email manually confirmed sent'+
+          ' to '+details.to+' (Resume: '+(details.resume||'attached manually')+
+          (details.messageId?', Gmail ID: '+details.messageId:'')+').';
+        const changes={contact_email:details.to,notes:[record.notes,log].filter(Boolean).join('\n')};
+        if(record.stage==='to_apply'){
+          Object.assign(changes,{stage:'applied',status:'applied',applied_date:todayISO()});
         }
-      });return;
+        await saveRecord(changes,record.id);
+        if(record.stage==='to_apply'){state.stage='applied';state.filter='all';state.search='';renderApp();}
+        toast(I18N.get()==='zh'?'已确认发送，Tracker 已更新。':'Sent confirmed; tracker updated.');
+      }});
+      return;
     }
     if(action==='delete')return removeRecord(id);
     if(action==='move')return markApplied(id);
@@ -266,8 +322,10 @@
       return;
     }
     const btn=e.target.closest('[data-action]');if(btn){try{await handleAction(btn);}catch(err){toast(err.message||String(err),true);}return;}
-    const tab=e.target.closest('[data-stage]');if(tab){state.stage=tab.dataset.stage;state.filter='all';state.search='';renderApp();}
+    const tab=e.target.closest('[data-stage]');if(tab){state.stage=tab.dataset.stage;state.filter='all';state.search='';renderApp();return;}
+    const card=e.target.closest('.company-main');if(card){showDetails(card.closest('[data-company-id]')?.dataset.companyId);return;}
   });
+  document.addEventListener('keydown',e=>{if((e.key==='Enter'||e.key===' ')&&e.target?.matches('.company-main')){e.preventDefault();showDetails(e.target.closest('[data-company-id]')?.dataset.companyId);}});
   document.addEventListener('input',e=>{if(e.target?.id==='search'){state.search=e.target.value;renderCards();}});
   document.addEventListener('change',e=>{
     if(e.target?.id==='filter'){state.filter=e.target.value;renderCards();}

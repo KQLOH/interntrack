@@ -48,19 +48,30 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .modal-header-actions{display:flex;align-items:center;gap:10px;flex-shrink:0}
 @media(max-width:520px){.auth-card{padding:25px 18px}.auth-header{gap:7px}.auth-header .logo-name{font-size:17px}.auth-header .logo-tagline{font-size:8px}.language-switch button{padding:6px}.modal-header-actions{gap:6px}}
 
-/* Internship Email Apply — overlays the existing InternTrack dashboard. */
-.email-apply-dialog{width:min(830px,100%)}
-.email-apply-dialog .field{margin:0 0 13px}
-.email-apply-dialog #email-body{min-height:210px;line-height:1.5;resize:vertical}
-.email-company-label{margin:10px 0 0;font-size:13px;font-weight:750;color:#315784}
-.email-hint{background:#edf3ff;color:#2b507e;border:1px solid #d5e5ff;padding:10px 13px;border-radius:10px;line-height:1.45;font-size:12px;margin:0 0 19px}
-.email-options-grid{display:grid;grid-template-columns:1fr 1fr;gap:13px;margin:18px 0 14px}
-.email-option{border:1px solid var(--line);background:#fbfcff;border-radius:14px;padding:17px;display:flex;flex-direction:column;gap:9px;min-width:0}
-.email-option h3{font-size:15px;margin:0;line-height:1.4}
-.email-option p,.email-option small{font-size:12px;color:#637287;line-height:1.5;margin:0}
-.email-option .btn{width:100%;margin-top:auto;min-height:37px;font-size:12px}
-.email-warning{font-size:12px;font-weight:650;color:#925e1d;margin:12px 0}
-.email-alert{padding:11px 13px;border:1px solid #b4e3d8;background:#f2faf7;border-radius:10px;color:#126a5b;font-size:12px;line-height:1.5}
-.email-alert.bad{border-color:#e5b4bb;background:#fff0f1;color:#a12742}
-.email-alert[hidden]{display:none}
-@media(max-width:700px){.email-options-grid{grid-template-columns:1fr}.email-apply-dialog #email-body{min-height:200px}}
+/* Review-before-send email application modal */
+.it-email-dialog{width:min(820px,100%)}
+.it-email-dialog .field{margin-bottom:13px}
+.it-email-dialog #it-body{min-height:195px;line-height:1.55}
+.it-email-help{padding:12px;border-radius:11px;background:#edf3ff;color:#315784;font-size:12px;line-height:1.55}
+.it-email-methods{display:grid;grid-template-columns:1fr 1fr;gap:13px;margin-top:18px}
+.it-email-methods>div{display:flex;flex-direction:column;gap:10px;border:1px solid var(--line);padding:17px;border-radius:14px;background:#fbfcff}
+.it-email-methods h3{margin:0;font-size:15px}
+.it-email-methods p{color:var(--muted);margin:0;line-height:1.5;font-size:12px;flex:1}
+.it-email-methods .btn{width:100%}
+.it-email-msg{background:#eaf8f3;color:#166957;padding:11px;border-radius:9px;line-height:1.5}
+.it-email-msg.bad{background:#fff0f1;color:#a52a43}
+@media(max-width:700px){.it-email-methods{grid-template-columns:1fr}}
+
+/* clickable company detail / preview */
+.company-main{cursor:pointer;border-radius:10px;padding:5px;margin:-5px}
+.company-main:hover{background:#f1f6ff}
+.company-main:focus-visible{outline:3px solid #9fc2ff;outline-offset:3px}
+.company-card:hover .company-name{text-decoration:underline;text-decoration-color:#a6c8fb;text-underline-offset:3px}
+.details-dialog{width:min(780px,100%)}
+.details-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.detail-item{padding:11px 13px;border:1px solid var(--line);border-radius:10px;background:#fbfcfe;min-width:0}
+.detail-item dt{font-size:11px;font-weight:750;color:var(--muted);margin-bottom:5px}
+.detail-item dd{margin:0;font-size:13px;overflow-wrap:anywhere}
+.detail-notes{margin-top:16px;border:1px solid var(--line);padding:15px;border-radius:12px}
+.detail-notes p{margin:8px 0 0;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.6}
+@media(max-width:600px){.details-grid{grid-template-columns:1fr}}
